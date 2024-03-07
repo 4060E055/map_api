@@ -1,4 +1,6 @@
+import time
 from datetime import datetime
+from enum import Enum
 from typing import TypedDict, Optional
 import pytz
 import requests
@@ -42,14 +44,14 @@ class SearchDirectionsFailed(Exception):
                 f'Error message：{self.message}')
 
 
-class Transportation:
+class Transportation(Enum):
     DRIVING = 'driving'  # 開車
     WALKING = 'walking'  # 步行
     BICYCLING = 'bicycling'  # 騎腳踏車
     TRANSIT = 'transit'  # 大眾運輸
 
 
-class TransitMode:
+class TransitMode(Enum):
     """
     大眾運輸模式
     warning: 這個模式只有在交通方式是大眾運輸(Transportation.TRANSIT)時才有用
@@ -186,8 +188,11 @@ if __name__ == '__main__':
         }
 
         output_dict = gmap.directions(origin, destination, time_setting, Transportation.WALKING)
+        time.sleep(1)
         output_dict = gmap.directions(origin, destination, time_setting, Transportation.DRIVING)
+        time.sleep(1)
         output_dict = gmap.directions(origin, destination, time_setting2, Transportation.BICYCLING)
+        time.sleep(1)
         output_dict = gmap.directions(origin=origin, destination=destination, time_param=time_setting2,
                                       mode=Transportation.TRANSIT, transit_mode=TransitMode.BUS)  # 大眾運輸模式 找不到會回傳空dict
     except SearchDirectionsFailed as e:
