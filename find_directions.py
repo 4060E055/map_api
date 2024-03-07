@@ -1,13 +1,22 @@
-import os
-import traceback
 from datetime import datetime
+from typing import TypedDict, Optional
 import pytz
 import requests
+from typing_extensions import Required
 
 """
 Google Map Directions API Introduction：
 https://developers.google.com/maps/documentation/directions/get-directions?hl=zh-tw#maps_http_directions_boston_concord_waypoints_now-txt
 """
+
+
+class TimeParam(TypedDict):
+    is_now: Required[bool]
+    year: Optional[int]
+    month: Optional[int]
+    day: Optional[int]
+    hour: Optional[int]
+    minute: Optional[int]
 
 
 class NotFutureTime(Exception):
@@ -80,17 +89,7 @@ class GoogleMapApi:
         :param transit_mode: 大眾運輸模式，使用Transportation.TRANSIT時才有作用
         :return: dict
         """
-        if time_param['is_now'] == False:
-            taiwan_timezone = pytz.timezone('Asia/Taipei')  # 設定時區
-            taiwan_time_point = datetime(time_param['year'], time_param['month'], time_param['day'], time_param['hour'],
-                                         time_param['minute'], tzinfo=taiwan_timezone)
-            current_time = datetime.now(taiwan_timezone)
-            if taiwan_time_point < current_time:  # 如果輸入的時間比現在時間還早 就raise error
-                raise NotFutureTime(current_time, taiwan_time_point)
-
-            departure_time = int(taiwan_time_point.timestamp())
-        else:
-            departure_time = 'now'
+        departure_time = self.dictTime_to_unixTime(time_param)
 
         url = (f'https://maps.googleapis.com/maps/api/directions/json')
         params = {
@@ -113,20 +112,7 @@ class GoogleMapApi:
             if result['status'] == 'ZERO_RESULTS':
                 return {}
             elif result['status'] == 'OK':
-                routes = result['routes'][0]
-                output_dict = {
-                    'summary': routes['summary'],  # 交通簡介
-                    'distance': routes['legs'][0]['distance']['text'],  # 距離
-                    'duration': routes['legs'][0]['duration']['text'],  # 交通順暢狀況下的時間
-                    'duration_in_traffic': routes['legs'][0]['duration_in_traffic'][  # 交通狀況下預估的時間
-                        'text'] if 'duration_in_traffic' in routes['legs'][0] else None,
-                    'steps': routes['legs'][0]['steps'],  # 路線步驟
-                    'start_location': routes['legs'][0]['start_location'],  # 起點經緯
-                    'end_location': routes['legs'][0]['end_location'],  # 終點經緯
-                    'start_address': routes['legs'][0]['start_address'],  # 起點地址
-                    'end_address': routes['legs'][0]['end_address'],  # 終點地址
-
-                }
+                output_dict = self.__get_direction_data(result)
                 return output_dict
 
             elif result['status'] == 'NOT_FOUND':  # 如果找不到景點，就raise error
@@ -137,21 +123,56 @@ class GoogleMapApi:
                     not_found_place.append(destination)
 
                 raise SearchDirectionsFailed(response.status_code,
-                                            f'{not_found_place} not found. Please check the input.')
+                                             f'{not_found_place} not found. Please check the input.')
             else:  # 如果status不是OK或ZERO_RESULTS，就raise error
                 raise SearchDirectionsFailed(response.status_code, 'status = ' + result['status'])
 
         else:  # 如果response.status_code不是200，就raise error
             raise SearchDirectionsFailed(response.status_code, response.text)
 
+    def __get_direction_data(self, result):
+        routes = result['routes'][0]
+        direction_data = {
+            'summary': routes['summary'],  # 交通簡介
+            'distance': routes['legs'][0]['distance']['text'],  # 距離
+            'duration': routes['legs'][0]['duration']['text'],  # 交通順暢狀況下的時間
+            'duration_in_traffic': routes['legs'][0]['duration_in_traffic'][  # 交通狀況下預估的時間
+                'text'] if 'duration_in_traffic' in routes['legs'][0] else None,
+            'steps': routes['legs'][0]['steps'],  # 路線步驟
+            'start_location': routes['legs'][0]['start_location'],  # 起點經緯
+            'end_location': routes['legs'][0]['end_location'],  # 終點經緯
+            'start_address': routes['legs'][0]['start_address'],  # 起點地址
+            'end_address': routes['legs'][0]['end_address'],  # 終點地址
+
+        }
+        return direction_data
+
+    def dictTime_to_unixTime(self, time_param):
+        if time_param['is_now'] == False:
+            taiwan_timezone = pytz.timezone('Asia/Taipei')  # 設定時區
+            taiwan_time_point = datetime(time_param['year'], time_param['month'], time_param['day'], time_param['hour'],
+                                         time_param['minute'], tzinfo=taiwan_timezone)
+            current_time = datetime.now(taiwan_timezone)
+            if taiwan_time_point < current_time:  # 如果輸入的時間比現在時間還早 就raise error
+                raise NotFutureTime(current_time, taiwan_time_point)
+
+            departure_time = int(taiwan_time_point.timestamp())
+        else:
+            departure_time = 'now'
+        return departure_time
+
 
 if __name__ == '__main__':
+    import traceback
+    import os
+
+
     origin = '難波JR站'
     destination = '大阪城'
 
-    gmap = GoogleMapApi(key=os.getenv("MAP_KEY"))
+    gmap = GoogleMapApi(key=os.getenv("MAP2_KEY"))
     try:
-        time_setting = {
+        time_setting: TimeParam = {
             'is_now': False,
             'year': 2024,
             'month': 3,
@@ -160,8 +181,8 @@ if __name__ == '__main__':
             'minute': 45
         }
 
-        time_setting2 = {
-            'is_now': True,
+        time_setting2: TimeParam = {
+            'is_now': True
         }
 
         output_dict = gmap.directions(origin, destination, time_setting, Transportation.WALKING)
