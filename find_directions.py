@@ -1,10 +1,9 @@
 import time
 from datetime import datetime
-from enum import Enum
 from typing import TypedDict, Optional
 import pytz
 import requests
-from typing_extensions import Required
+
 
 """
 Google Map Directions API Introduction：
@@ -13,7 +12,7 @@ https://developers.google.com/maps/documentation/directions/get-directions?hl=zh
 
 
 class TimeParam(TypedDict):
-    is_now: Required[bool]
+    is_now: bool
     year: Optional[int]
     month: Optional[int]
     day: Optional[int]
@@ -44,14 +43,14 @@ class SearchDirectionsFailed(Exception):
                 f'Error message：{self.message}')
 
 
-class Transportation(Enum):
+class Transportation:
     DRIVING = 'driving'  # 開車
     WALKING = 'walking'  # 步行
     BICYCLING = 'bicycling'  # 騎腳踏車
     TRANSIT = 'transit'  # 大眾運輸
 
 
-class TransitMode(Enum):
+class TransitMode:
     """
     大眾運輸模式
     warning: 這個模式只有在交通方式是大眾運輸(Transportation.TRANSIT)時才有用
@@ -186,6 +185,7 @@ if __name__ == '__main__':
         time_setting2: TimeParam = {
             'is_now': True
         }
+
 
         output_dict = gmap.directions(origin, destination, time_setting, Transportation.WALKING)
         time.sleep(1)
